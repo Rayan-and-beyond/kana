@@ -22,3 +22,13 @@ export function formatKanaSkillsForPrompt(skills: readonly KanaSkill[]): string 
     "</available_skills>",
   ].join("\n");
 }
+
+export function formatKanaSkillInvocation(skill: KanaSkill, request: string): string {
+  const instruction = [
+    `[User explicitly selected the ${JSON.stringify(skill.name)} Skill for this request.]`,
+    `Use this Skill to complete the request below. Read and follow ${JSON.stringify(skill.filePath)} completely, resolving relative paths from ${JSON.stringify(skill.baseDir)}.`,
+  ].join("\n");
+  const normalizedRequest = request.trim();
+
+  return normalizedRequest ? `${instruction}\n\n${normalizedRequest}` : instruction;
+}

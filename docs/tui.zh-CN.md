@@ -50,7 +50,7 @@ Responses provider 的 `web_search_call`（当前来自 OpenAI Codex 与 DeepSee
 | `Ctrl+O` | 打开/关闭最近一项工具调用的详情查看器；`/tools` 从当前会话全部工具调用的可浏览历史中打开同一个查看器。打开期间按 `[` / `]` 切换到上/下一个工具调用。 |
 | `!<command>` | 不经过 Agent 或工具审批，直接运行本地 bash，并显示同样的工具块。 |
 
-编辑器使用与用户消息块相同的 ASCII 边框、浅灰正文和蓝色 `> ` 前缀，不设置输入区域背景色；框体直接跟在 Layout 分隔线后。输入为空时，它会从 `/help` 的 slash 命令、prompt template 调用和已记录的输入快捷键中随机选择一项作为 placeholder；启动和每次按普通 `Enter` 后都会选择一个不同于当前条目的提示，其他重绘不会改变它。`/help` 把 prompt template 与 slash 命令显示为独立小节，面板、placeholder 和 usage 错误则复用相应的语法与描述目录。快捷键区涵盖编辑器提交与排队、多行输入、Readline 风格编辑、图片粘贴、中止、工具输出切换和本地 Shell 输入。
+编辑器使用与用户消息块相同的 ASCII 边框、浅灰正文和蓝色 `> ` 前缀，不设置输入区域背景色；框体直接跟在 Layout 分隔线后。输入为空时，它会从 `/help` 的 slash 命令、显式 Skill 调用、prompt template 调用和已记录的输入快捷键中随机选择一项作为 placeholder；启动和每次按普通 `Enter` 后都会选择一个不同于当前条目的提示，其他重绘不会改变它。`/help` 把 Skill、prompt template 与 slash 命令显示为独立小节，面板、placeholder 和 usage 错误则复用相应的语法与描述目录。快捷键区涵盖编辑器提交与排队、多行输入、Readline 风格编辑、图片粘贴、中止、工具输出切换和本地 Shell 输入。
 
 编辑器的移动与编辑快捷键如下：
 
@@ -70,9 +70,9 @@ Responses provider 的 `web_search_call`（当前来自 OpenAI Codex 与 DeepSee
 
 在 macOS 上，`Option` 是物理上的 `Alt` 键。终端将 Option 作为 Alt/Meta 上报（传统 `Esc` 前缀或增强键盘协议）时这些快捷键可用；如果终端直接把 Option 组合转换成可打印 Unicode 字符，Kana 会继续把它当作普通文字输入。
 
-编辑器支持多行输入、最多 5 个可见行、历史记录（最多 100 条）、bracketed paste、slash 补全和 prompt template 补全。启用 `tui.collapse_long_pastes` 时，达到 1,000 个 grapheme 的 bracketed paste 会在主编辑器和 slash 命令文本提示中显示为弱化的 `[Pasted N chars]` 原子项，提交内容和历史记录仍保留完整原文。按字符、按词、逻辑行边界和 kill 操作都会保持折叠粘贴块的原子性；kill buffer 同时保留折叠元数据，因此 `Ctrl+Y` 会恢复折叠项，而不是展开它的原始文字。关闭配置后恢复完整显示和逐 grapheme 编辑。
+编辑器支持多行输入、最多 5 个可见行、历史记录（最多 100 条）、bracketed paste、slash 补全、显式 Skill 补全和 prompt template 补全。启用 `tui.collapse_long_pastes` 时，达到 1,000 个 grapheme 的 bracketed paste 会在主编辑器和 slash 命令文本提示中显示为弱化的 `[Pasted N chars]` 原子项，提交内容和历史记录仍保留完整原文。按字符、按词、逻辑行边界和 kill 操作都会保持折叠粘贴块的原子性；kill buffer 同时保留折叠元数据，因此 `Ctrl+Y` 会恢复折叠项，而不是展开它的原始文字。关闭配置后恢复完整显示和逐 grapheme 编辑。
 
-空闲时 `Enter` 正常提交。Run 进行中时，`Enter` 尝试把输入交给当前 run，`Tab` 则排到后续 run；准确的 steering、defer 与 FIFO 规则见[对话运行时](conversation-runtime.zh-CN.md)和 [Agent 运行时](agent-runtime.zh-CN.md)。空闲时普通输入的 Tab 不提交，打开建议面板时则补全选中项；支持的终端中，`Shift+Enter` 插入换行。以 `/` 开头会打开内置命令面板，以 `:` 开头则打开类型独立的 prompt template 面板；两者最多显示 10 项并随选择滚动。完整的模板调用会在进入普通消息、history 和 queue 链路前展开。未知 slash、未知冒号输入和单独的 `!` 会作为普通模型消息发送。模板文件格式与参数规则见[配置与安装](configuration.zh-CN.md#prompt-templates)。
+空闲时 `Enter` 正常提交。Run 进行中时，`Enter` 尝试把输入交给当前 run，`Tab` 则排到后续 run；准确的 steering、defer 与 FIFO 规则见[对话运行时](conversation-runtime.zh-CN.md)和 [Agent 运行时](agent-runtime.zh-CN.md)。空闲时普通输入的 Tab 不提交，打开建议面板时则补全选中项；支持的终端中，`Shift+Enter` 插入换行。以 `/` 开头会打开内置命令面板，以 `@` 开头会打开完整 Skill 面板，以 `:` 开头则打开类型独立的 prompt template 面板；三者最多显示 10 项并随选择滚动。已识别的 `@<name> <request>` 会展开为一段包含所选 Skill 路径的用户可见指引，后面接实际请求；编辑器历史仍保留原始形式。完整的模板调用会在进入普通消息、history 和 queue 链路前展开。未知 slash、未知 Skill、未知冒号输入和单独的 `!` 会作为普通模型消息发送。Skill 调用见 [Skills 与系统提示词](skills-and-prompt.zh-CN.md#显式调用-skill)，模板文件格式与参数规则见[配置与安装](configuration.zh-CN.md#prompt-templates)。
 
 Background Job 和 Subagent completion 与其它 runtime 输入共用 queued-input 投影；投递、合并与确认语义见[对话运行时](conversation-runtime.zh-CN.md)。`/jobs` 展示不消费状态的输出尾部并控制当前 session 的 Job；`/agents` 同样只查看或取消 child，不确认终态 completion，因此 Agent 仍可能收到这两类通知。
 
@@ -88,7 +88,7 @@ Background Job 和 Subagent completion 与其它 runtime 输入共用 queued-inp
 | `/fork <prompt>` | 从当前 Agent 历史创建分叉会话后发送 prompt。 |
 | `/resume [id]` | 恢复指定会话或打开选择器。 |
 | `/delete` | 选择并确认删除会话。 |
-| `/skills` | 管理全局 Skills 开关，并重建 Agent 的系统提示词。 |
+| `/skills` | 管理全局 Skill 的自动发现状态并重建 Agent 系统提示词；所有 Skill 仍可通过 `@` 显式调用。 |
 | `/mcp` | 管理 MCP server 开关，并在选择变化时 reload。 |
 | `/schedule` | 查看、添加、刷新或删除当前 session 的进程内定时消息。 |
 | `/jobs` | 管理当前 session 拥有的 Job：刷新、查看不消耗游标的输出尾部，以及停止活动 Job。Agent 运行期间同样可用；TUI 查看和停止不会确认终态完成。 |
@@ -106,7 +106,7 @@ Background Job 和 Subagent completion 与其它 runtime 输入共用 queued-inp
 
 `/usage` 会让 token 标签、数值和比例条保持稳定列位。Runs 区域把 main、subagent 和自动/手动 memory usage 分开；按模型明细会显示 token 总数，并根据当前可见数据动态计算数字列宽，因此更大的次数、token 总数或更长的模型名不会推动相邻数值错位。各类 outcome 仍保持紧凑的单行摘要，底部视图较窄时可能被截断。
 
-Clean 模式中 `/skills`、`/mcp`、`/memory`、`/fork`、`/resume` 和 `/delete` 保留为可发现命令，但执行时会显示明确的不可用错误。`/usage` 仍显示 Session、Project 和 Global 三个选项；选择 Session 会显示不可用错误，另外两个范围仍可读取历史汇总。`/new`、`/schedule`、`/jobs`、`/agents`、`/goal`、`/todo`、`/image`、`/approval`、`/compact`、`/model` 和本地 Shell 可在临时会话内使用。`/agents` 只暴露内置 profile 和进程内 child 状态；`/schedule` 消息、Job 与 `/goal` 控制状态也只存在于当前进程。`/todo` 读取进程内列表，`/model` 不写回配置文件。
+Clean 模式中 `/skills`、`/mcp`、`/memory`、`/fork`、`/resume` 和 `/delete` 保留为可发现命令，但执行时会显示明确的不可用错误。Skill 发现被完全绕过，因此以 `@` 开头不会出现匹配建议或调用展开。`/usage` 仍显示 Session、Project 和 Global 三个选项；选择 Session 会显示不可用错误，另外两个范围仍可读取历史汇总。`/new`、`/schedule`、`/jobs`、`/agents`、`/goal`、`/todo`、`/image`、`/approval`、`/compact`、`/model` 和本地 Shell 可在临时会话内使用。`/agents` 只暴露内置 profile 和进程内 child 状态；`/schedule` 消息、Job 与 `/goal` 控制状态也只存在于当前进程。`/todo` 读取进程内列表，`/model` 不写回配置文件。
 
 ## 控制器与焦点
 

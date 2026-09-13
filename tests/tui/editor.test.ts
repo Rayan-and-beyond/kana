@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { KanaPromptTemplate } from "@/kana";
+import {
+  formatKanaSkillInvocation,
+  type KanaPromptTemplate,
+  type KanaSkillActivation,
+} from "@/kana";
 import { Editor } from "../../src/tui/components/editor";
 import {
   createRandomPromptPlaceholder,
@@ -272,6 +276,96 @@ describe("Editor", () => {
       editor.setText(":cleanup branch=feature base=develop");
       editor.handleInput("\t");
       expect(queued).toEqual([{ type: "message", content: "Clean feature from develop." }]);
+    });
+
+    test("lists every Skill and expands a leading explicit reference", () => {
+      const skills: KanaSkillActivation[] = [
+        {
+          name: "project-review",
+          description: "Review the current project.",
+          filePath: "/repo/.kana/skills/project-review/SKILL.md",
+          baseDir: "/repo/.kana/skills/project-review",
+          scope: "project",
+          enabled: true,
+          mutable: false,
+        },
+        {
+          name: "release-check",
+          description: "Prepare a release safely.",
+          filePath: "/home/.kana/skills/release-check/SKILL.md",
+          baseDir: "/home/.kana/skills/release-check",
+          scope: "global",
+          enabled: false,
+          mutable: true,
+        },
+      ];
+      const editor = new Editor({ skills });
+      const submissions: unknown[] = [];
+      const queued: unknown[] = [];
+      editor.onSubmit = (submit) => submissions.push(submit);
+      editor.onQueue = (submit) => queued.push(submit);
+
+      editor.setText("@");
+      const palette = stripAnsi(editor.render(80).join("\n"));
+      expect(palette).toContain("@project-review");
+      expect(palette).toContain("Review the current project.");
+      expect(palette).toContain("@release-check");
+      expect(palette).toContain("Prepare a release safely.");
+      expect(palette).not.toContain("manual only");
+
+      editor.setText("@rel");
+      editor.handleInput("\t");
+      expect(editor.getText()).toBe("@release-check ");
+
+      editor.setText("@release-check publish version 2");
+      editor.handleInput("\r");
+      expect(submissions).toEqual([
+        {
+          type: "message",
+          content: formatKanaSkillInvocation(skills[1]!, " publish version 2"),
+          raw: "@release-check publish version 2",
+        },
+      ]);
+
+      editor.setText("@project-review inspect this change");
+      editor.handleInput("\t");
+      expect(queued).toEqual([
+        {
+          type: "message",
+          content: formatKanaSkillInvocation(skills[0]!, " inspect this change"),
+          raw: "@project-review inspect this change",
+        },
+      ]);
+    });
+
+    test("treats non-leading and unknown Skill references as ordinary messages", () => {
+      const skill: KanaSkillActivation = {
+        name: "release-check",
+        description: "Prepare a release safely.",
+        filePath: "/home/.kana/skills/release-check/SKILL.md",
+        baseDir: "/home/.kana/skills/release-check",
+        scope: "global",
+        enabled: false,
+        mutable: true,
+      };
+      const editor = new Editor({ skills: [skill] });
+      const submissions: unknown[] = [];
+      editor.onSubmit = (submit) => submissions.push(submit);
+
+      editor.setText("Contact user@example.com about @release-check");
+      expect(stripAnsi(editor.render(80).join("\n"))).not.toContain("Prepare a release safely.");
+      editor.handleInput("\r");
+
+      editor.setText("@unknown leave unchanged");
+      editor.handleInput("\r");
+
+      expect(submissions).toEqual([
+        {
+          type: "message",
+          content: "Contact user@example.com about @release-check",
+        },
+        { type: "message", content: "@unknown leave unchanged" },
+      ]);
     });
 
     test("keeps invalid and unmatched template input in the ordinary editor flow", () => {
@@ -771,7 +865,7 @@ describe("Editor", () => {
 
   describe("placeholder rendering", () => {
     test("keeps every prompt placeholder inside input frames of different widths", () => {
-      const helpEntryCount = PROMPT_COMMANDS.length + PROMPT_SHORTCUTS.length;
+      const helpEntryCount = PROMPT_COMMANDS.length + PROMPT_SHORTCUTS.length + 2;
       const placeholders = Array.from({ length: helpEntryCount }, (_, index) =>
         createRandomPromptPlaceholder(() => index / helpEntryCount),
       );

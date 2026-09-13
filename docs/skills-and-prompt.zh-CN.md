@@ -44,7 +44,7 @@ frontmatter 仅识别 `name` 和 `description`；未知字段被忽略。支持�
 enabled = ["release-check", "database-migrations"]
 ```
 
-文件不存在或 `enabled` 缺失时，全局 Skills 均不注入模型提示词。产品 Host 会在普通启动时发现一次 Skills 并加载一次启用列表；直接修改文件需要重启才会生效。`/skills` 从该快照打开管理界面：project 项显示为 locked，`Enter` 只在本地草稿中切换 global 项。`Esc` 应用并关闭草稿；最终集合有变化时，Kana 会持久化启用差量、更新快照，并只重建一次 Agent 系统提示词；未变化时两项操作都不执行，持久化失败时管理界面保持打开。管理界面显示的 scope 根据 Skill 文件是否位于全局 Skills 目录内决定。
+文件不存在或 `enabled` 缺失时，全局 Skills 均不注入模型提示词供 Agent 自动发现。产品 Host 会在普通启动时发现一次 Skills 并加载一次启用列表；直接修改文件需要重启才会生效。`/skills` 从该快照打开管理界面：project 项显示为 locked，`Enter` 只在本地草稿中切换 global 项的自动发现状态。无论该状态如何，每个已发现的 Skill 都仍可通过显式 `@` 调用。`Esc` 应用并关闭草稿；最终集合有变化时，Kana 会持久化启用差量、更新快照，并只重建一次 Agent 系统提示词；未变化时两项操作都不执行，持久化失败时管理界面保持打开。管理界面显示的 scope 根据 Skill 文件是否位于全局 Skills 目录内决定。
 
 ## 提示词的组成
 
@@ -97,6 +97,12 @@ Kana 通过独立的 `goal` source 提供 active Goal 状态，并且只在该�
 
 名称、描述和路径会 XML 转义。提示词明确要求模型在任务匹配时通过 `read` 工具加载文件，并把 Skill 内的相对路径相对于 `SKILL.md` 的父目录解析。Kana 不会自动读取 Skill 正文、自动执行其中命令，或把它们注册为 Tool。
 
+## 显式调用 Skill
+
+在 TUI 中，以 `@` 开头会打开包含启动快照中全部 Skill 的面板，其中也包括在 `/skills` 中关闭的全局 Skill。第一个由空白分隔的 token 选择一个 Skill，因此 `@release-check publish version 2` 会为本次请求显式调用 `release-check`。消息其它位置的 `@` 没有特殊含义，未知的开头名称仍作为普通用户输入发送。
+
+提交前，Kana 会把已识别的开头引用替换为一段简短、用户可见的指引，其中包含所选 Skill 名称、`SKILL.md` 路径和基础目录，后面再接剩余请求。这段展开内容就是实际发送给模型并持久化的用户消息；编辑器历史保留原始 `@` 形式。显式调用不会修改 `skills.toml`、重建 Agent，也不会让该 Skill 在后续请求中变成可自动发现。
+
 ## 诊断与维护
 
 加载结果包含 warning 或 collision 诊断。常见原因包括文件不可读、frontmatter 不完整、元数据格式不合法和同名冲突。TUI 目前加载并显示有效 Skill 的激活状态；调用方若要处理诊断，需要读取 `loadKanaSkills`/`loadKanaSkillActivations` 的返回值。
@@ -105,6 +111,6 @@ Kana 通过独立的 `goal` source 提供 active Goal 状态，并且只在该�
 
 - 使用目录 `<root>/<skill-name>/SKILL.md`，便于把脚本或模板放在同一目录。
 - 写简短准确的 description，避免过宽泛触发。
-- 不依赖“全局一定启用”：全局 Skill 需要用户在 `/skills` 中打开。
+- 不依赖“全局一定可自动发现”：用户可以在 `/skills` 中打开全局 Skill，或在 TUI 中通过 `@` 显式调用。
 - 把相对资源写成相对于 Skill 目录的路径；模型提示词已明确这一约定。
 - 用 project 目录放仓库专用流程，用 global 目录放跨项目可复用流程。

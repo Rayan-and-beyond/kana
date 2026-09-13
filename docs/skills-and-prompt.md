@@ -44,7 +44,7 @@ Skills in project directories are always enabled. Skills under `<KANA_HOME>/skil
 enabled = ["release-check", "database-migrations"]
 ```
 
-When the file is absent or `enabled` is missing, no global Skills enter the model prompt. The product Host discovers Skills and loads this activation list once at normal startup; direct file changes require a restart. `/skills` opens the manager from that snapshot: project entries are locked, while `Enter` toggles global entries in a local draft. `Esc` applies and closes the draft; if its final set changed, Kana persists the activation delta, updates the snapshot, and rebuilds the Agent system prompt once. An unchanged draft performs neither operation, while a persistence failure leaves the manager open. The manager determines scope by whether a Skill file resides under the global Skills directory.
+When the file is absent or `enabled` is missing, no global Skills enter the model prompt for automatic discovery. The product Host discovers Skills and loads this activation list once at normal startup; direct file changes require a restart. `/skills` opens the manager from that snapshot: project entries are locked, while `Enter` toggles automatic discovery for global entries in a local draft. Every discovered Skill remains available for explicit `@` invocation regardless of this state. `Esc` applies and closes the draft; if its final set changed, Kana persists the activation delta, updates the snapshot, and rebuilds the Agent system prompt once. An unchanged draft performs neither operation, while a persistence failure leaves the manager open. The manager determines scope by whether a Skill file resides under the global Skills directory.
 
 ## Prompt composition
 
@@ -97,6 +97,12 @@ Each visible Skill becomes an XML-like entry:
 
 Names, descriptions, and paths are XML-escaped. The prompt instructs the model to load matching files with the `read` tool and resolve paths referenced inside a Skill relative to the parent directory of `SKILL.md`. Kana does not automatically read Skill bodies, execute their commands, or register them as Tools.
 
+## Explicit Skill invocation
+
+In the TUI, a leading `@` opens a palette containing every Skill in the startup snapshot, including global Skills disabled in `/skills`. The first whitespace-delimited token selects one Skill, so `@release-check publish version 2` explicitly invokes `release-check` for that request. `@` elsewhere in the message has no special meaning, and an unknown leading name remains ordinary user input.
+
+Before submission, Kana replaces a recognized leading reference with a short user-visible instruction containing the selected Skill name, its `SKILL.md` path, and its base directory, followed by the remaining request. This expanded content is the actual model-facing and persisted user message; editor history retains the original `@` form. Explicit invocation does not modify `skills.toml`, rebuild the Agent, or make the Skill automatically discoverable for later requests.
+
 ## Diagnostics and maintenance
 
 Loading produces warning or collision diagnostics. Common causes are unreadable files, incomplete frontmatter, invalid metadata, and name collisions. The TUI currently loads and displays activation state for valid Skills; callers that need diagnostics must inspect the result of `loadKanaSkills` or `loadKanaSkillActivations`.
@@ -105,6 +111,6 @@ When adding a Skill:
 
 - Use `<root>/<skill-name>/SKILL.md` so scripts and templates can live beside it.
 - Write a short, accurate description to avoid overly broad matching.
-- Do not assume a global Skill is enabled: users must activate it in `/skills`.
+- Do not assume a global Skill is automatically discoverable: users can activate it in `/skills` or invoke it explicitly with `@` in the TUI.
 - Reference relative resources from the Skill directory; the model prompt specifies this convention.
 - Put repository-specific workflows in project directories and reusable workflows in the global directory.

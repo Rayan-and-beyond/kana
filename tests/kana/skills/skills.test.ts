@@ -6,6 +6,7 @@ import {
   buildKanaSystemPrompt,
   createKanaAgent,
   DEFAULT_KANA_CONFIG,
+  formatKanaSkillInvocation,
   formatKanaSkillsForPrompt,
   getKanaConfigPaths,
   loadKanaSkillActivations,
@@ -250,6 +251,27 @@ describe("Kana skills", () => {
 
   test("returns an empty prompt when no skills are supplied", () => {
     expect(formatKanaSkillsForPrompt([])).toBe("");
+  });
+
+  test("formats a user-selected Skill invocation", () => {
+    expect(
+      formatKanaSkillInvocation(
+        {
+          name: "manual-skill",
+          description: "Use this Skill manually.",
+          filePath: "/tmp/manual-skill/SKILL.md",
+          baseDir: "/tmp/manual-skill",
+        },
+        "  Handle this request.  ",
+      ),
+    ).toBe(
+      [
+        '[User explicitly selected the "manual-skill" Skill for this request.]',
+        'Use this Skill to complete the request below. Read and follow "/tmp/manual-skill/SKILL.md" completely, resolving relative paths from "/tmp/manual-skill".',
+        "",
+        "Handle this request.",
+      ].join("\n"),
+    );
   });
 
   test("does not require project skills to be allowlisted", () => {

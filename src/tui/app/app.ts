@@ -147,6 +147,7 @@ export class KanaTuiApp {
       cleanMode,
       collapseLongPastes: options.ui.config?.collapseLongPastes ?? true,
       promptTemplates: options.ui.promptTemplates,
+      skills: cleanMode ? [] : options.skills.load().skills,
       model: formatStatusModel(
         this.conversation.state.model.metadata,
         this.options.models?.getSettings(),
@@ -552,11 +553,11 @@ export class KanaTuiApp {
         return;
       }
 
-      void this.submitPrompt(submit.content, submit.images);
+      void this.submitPrompt(submit.content, submit.images, submit.raw);
     };
     this.editor.onQueue = (submit) => {
       if (submit.type === "message") {
-        this.queuePrompt(submit.content, submit.images);
+        this.queuePrompt(submit.content, submit.images, submit.raw);
       }
     };
     this.editor.onPasteClipboard = () => {
@@ -1003,8 +1004,13 @@ export class KanaTuiApp {
     this.errors.showInteractionError(error);
   }
 
-  private async submitPrompt(value: string, images: UserImage[] = []): Promise<void> {
+  private async submitPrompt(
+    value: string,
+    images: UserImage[] = [],
+    historyValue = value,
+  ): Promise<void> {
     const prompt = value.trim();
+    const historyPrompt = historyValue.trim();
 
     if (!prompt && images.length === 0) {
       return;
@@ -1021,7 +1027,7 @@ export class KanaTuiApp {
     });
 
     if (this.conversation.canSteer) {
-      this.editor.addToHistory(prompt);
+      this.editor.addToHistory(historyPrompt);
       this.editor.clear();
       const queuedInputId = this.queuedInputs.addTurn(input);
       const disposition = await this.conversation.steer(input);
@@ -1034,13 +1040,14 @@ export class KanaTuiApp {
       return;
     }
 
-    this.editor.addToHistory(prompt);
+    this.editor.addToHistory(historyPrompt);
     this.editor.clear();
     await this.submitAgentInput(input);
   }
 
-  private queuePrompt(value: string, images: UserImage[] = []): void {
+  private queuePrompt(value: string, images: UserImage[] = [], historyValue = value): void {
     const prompt = value.trim();
+    const historyPrompt = historyValue.trim();
     if ((!prompt && images.length === 0) || !this.conversation.canSteer) {
       return;
     }
@@ -1055,7 +1062,7 @@ export class KanaTuiApp {
       ...(images.length > 0 ? { images: structuredClone(images) } : {}),
     });
 
-    this.editor.addToHistory(prompt);
+    this.editor.addToHistory(historyPrompt);
     this.editor.clear();
     this.conversation.queueInput(input);
   }

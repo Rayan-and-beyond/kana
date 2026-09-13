@@ -29,10 +29,13 @@ describe("skill manager", () => {
     const rendered = rawRendered.map(stripAnsi);
 
     expect(rendered).toContain("Skills");
+    expect(rendered).toContain(
+      "Disabled Skills are manual-only; all Skills remain available through @.",
+    );
     expect(rendered).toContain("> [x] project-skill  project locked");
     expect(rendered).toContain("  Project-local skill.");
     expect(rendered).toContain("  [ ] global-skill  global");
-    expect(rendered).toContain("Enter toggle · Esc apply and close");
+    expect(rendered).toContain("Enter toggle automatic use · Esc apply and close");
     expect(rawRendered[0]).toBe(color("Skills", tuiTheme.bottomTitle));
   });
 
@@ -122,12 +125,13 @@ describe("skill manager", () => {
 
     expect(manager.render(80).map(stripAnsi)).toEqual([
       "Skills",
+      "Disabled Skills are manual-only; all Skills remain available through @.",
       "> [ ] skill-1  global",
       "  Skill 1.",
       "  [ ] skill-2  global",
       "  [ ] skill-3  global",
       "... 2 more skills",
-      "Enter toggle · Esc apply and close",
+      "Enter toggle automatic use · Esc apply and close",
     ]);
 
     manager.handleInput("\x1b[B");
@@ -136,13 +140,14 @@ describe("skill manager", () => {
 
     expect(manager.render(80).map(stripAnsi)).toEqual([
       "Skills",
+      "Disabled Skills are manual-only; all Skills remain available through @.",
       "... 1 earlier skills",
       "  [ ] skill-2  global",
       "  [ ] skill-3  global",
       "> [ ] skill-4  global",
       "  Skill 4.",
       "... 1 more skills",
-      "Enter toggle · Esc apply and close",
+      "Enter toggle automatic use · Esc apply and close",
     ]);
   });
 

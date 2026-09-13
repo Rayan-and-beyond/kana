@@ -8,6 +8,8 @@ import {
   PROMPT_HELP_TITLE,
   PROMPT_SHORTCUTS,
   PROMPT_SHORTCUTS_TITLE,
+  PROMPT_SKILL_SHORTCUT,
+  PROMPT_SKILLS_TITLE,
   PROMPT_TEMPLATE_SHORTCUT,
   PROMPT_TEMPLATES_TITLE,
 } from "../components/editor/commands";
@@ -78,11 +80,10 @@ export class InformationViewerController {
     const help = new TextBlock(
       [
         PROMPT_TEMPLATES_TITLE,
-        "",
         formatPromptShortcutHelpLine(PROMPT_TEMPLATE_SHORTCUT),
-        "",
+        PROMPT_SKILLS_TITLE,
+        formatPromptShortcutHelpLine(PROMPT_SKILL_SHORTCUT),
         PROMPT_COMMANDS_TITLE,
-        "",
         ...PROMPT_COMMANDS.map(formatPromptCommandHelpLine),
         "",
         PROMPT_SHORTCUTS_TITLE,

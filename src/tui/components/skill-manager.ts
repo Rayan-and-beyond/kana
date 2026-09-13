@@ -5,7 +5,7 @@ import { tuiTheme } from "../theme";
 import { ListViewport, visibleLimitForHeight } from "../utils/list-viewport";
 
 const SKILL_MANAGER_VISIBLE_LIMIT = 10;
-const SKILL_MANAGER_RESERVED_ROWS = 5;
+const SKILL_MANAGER_RESERVED_ROWS = 6;
 
 export type SkillManagerItem = {
   name: string;
@@ -69,7 +69,14 @@ export class SkillManager implements Component {
   }
 
   render(width: number, availableHeight?: number): string[] {
-    const lines = [color("Skills", tuiTheme.bottomTitle)];
+    const lines = [
+      color("Skills", tuiTheme.bottomTitle),
+      truncateToWidth(
+        dim("Disabled Skills are manual-only; all Skills remain available through @."),
+        width,
+        "...",
+      ),
+    ];
 
     if (this.skills.length === 0) {
       lines.push(dim("No skills found for this workspace."), dim("Esc close"));
@@ -113,7 +120,7 @@ export class SkillManager implements Component {
       lines.push(dim(`... ${viewport.hiddenAfter} more skills`));
     }
 
-    lines.push(dim("Enter toggle · Esc apply and close"));
+    lines.push(truncateToWidth(dim("Enter toggle automatic use · Esc apply and close"), width, ""));
     return lines;
   }
 

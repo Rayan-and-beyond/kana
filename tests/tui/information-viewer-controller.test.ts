@@ -22,6 +22,7 @@ describe("information viewer controller", () => {
     const rendered = harness.render();
     expect(rendered.some((line) => line.includes("Prompt templates"))).toBe(true);
     expect(rendered.some((line) => line.includes(":<name> [name=value ...]"))).toBe(true);
+    expect(rendered.some((line) => line.includes("@<name> <request>"))).toBe(true);
     expect(rendered.some((line) => line.includes("Slash commands"))).toBe(true);
     expect(rendered.some((line) => line.includes("/quit"))).toBe(true);
   });

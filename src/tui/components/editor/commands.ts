@@ -42,6 +42,7 @@ export type PromptSubmit =
       type: "message";
       content: string;
       images?: UserImage[];
+      raw?: string;
     }
   | {
       type: "shell";
@@ -103,7 +104,7 @@ export const PROMPT_COMMANDS: PromptCommand[] = [
   {
     name: "skills",
     availability: "idle",
-    description: "Manage active skills.",
+    description: "Manage automatic Skill use.",
   },
   {
     name: "mcp",
@@ -176,8 +177,13 @@ export const PROMPT_COMMANDS: PromptCommand[] = [
 
 export const PROMPT_HELP_TITLE = "Help";
 export const PROMPT_COMMANDS_TITLE = "Slash commands";
+export const PROMPT_SKILLS_TITLE = "Skills";
 export const PROMPT_TEMPLATES_TITLE = "Prompt templates";
 export const PROMPT_SHORTCUTS_TITLE = "Input and shortcuts";
+export const PROMPT_SKILL_SHORTCUT: PromptShortcut = {
+  input: "@<name> <request>",
+  description: "Use a Skill explicitly for one request.",
+};
 export const PROMPT_TEMPLATE_SHORTCUT: PromptShortcut = {
   input: ":<name> [name=value ...]",
   description: "Expand a reusable prompt template.",
@@ -261,6 +267,8 @@ const PROMPT_COMMAND_SYNTAX_WIDTH = Math.max(
   ...PROMPT_COMMANDS.map((command) => formatPromptCommandSyntax(command).length),
 );
 const PROMPT_SHORTCUT_INPUT_WIDTH = Math.max(
+  PROMPT_SKILL_SHORTCUT.input.length,
+  PROMPT_TEMPLATE_SHORTCUT.input.length,
   ...PROMPT_SHORTCUTS.map((shortcut) => shortcut.input.length),
 );
 
@@ -316,6 +324,7 @@ export function createRandomPromptPlaceholder(random = Math.random, previous?: s
     ...PROMPT_COMMANDS.map(
       (command) => `Try ${formatPromptCommandSyntax(command)} — ${command.description}`,
     ),
+    `Try ${PROMPT_SKILL_SHORTCUT.input} — ${PROMPT_SKILL_SHORTCUT.description}`,
     `Try ${PROMPT_TEMPLATE_SHORTCUT.input} — ${PROMPT_TEMPLATE_SHORTCUT.description}`,
     ...PROMPT_SHORTCUTS.map((shortcut) => `Try ${shortcut.input} — ${shortcut.description}`),
   ];

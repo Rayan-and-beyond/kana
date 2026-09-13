@@ -10,7 +10,7 @@ export {
   loadKanaSkills,
   loadKanaSkillsFromDir,
 } from "./loader";
-export { formatKanaSkillsForPrompt } from "./prompt";
+export { formatKanaSkillInvocation, formatKanaSkillsForPrompt } from "./prompt";
 export { createKanaSkillStore, type KanaSkillStore } from "./store";
 export {
   resyncKanaSkills,

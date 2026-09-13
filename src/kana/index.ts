@@ -110,6 +110,7 @@ export {
   loadKanaSession,
 } from "./session";
 export {
+  formatKanaSkillInvocation,
   formatKanaSkillsForPrompt,
   type InstallKanaSkillsResult,
   installKanaSkills,

@@ -1,5 +1,5 @@
 import type { UserImage } from "@/core";
-import type { KanaPromptTemplate } from "@/kana";
+import type { KanaPromptTemplate, KanaSkillActivation } from "@/kana";
 
 import {
   color,
@@ -47,6 +47,13 @@ import {
   moveInputCursorVertically,
 } from "./input-layout";
 import {
+  completeSkillReference,
+  createSkillReferenceSubmit,
+  formatSkillReferenceHelpLine,
+  getSkillReferenceState,
+  type SkillReferenceState,
+} from "./skills";
+import {
   applyEditorAction,
   type CollapsedPaste,
   createEditorDisplayState,
@@ -78,6 +85,7 @@ export type EditorOptions = {
   commandPaletteVisibleLimit?: number;
   collapseLongPastes?: boolean;
   promptTemplates?: readonly KanaPromptTemplate[];
+  skills?: readonly KanaSkillActivation[];
 };
 
 export type EditorQueuedInput = {
@@ -99,6 +107,7 @@ type EditorHistoryEntry = {
 type EditorPaletteState =
   | ({ kind: "command" } & CommandState)
   | ({ kind: "template" } & PromptTemplateState)
+  | ({ kind: "skill" } & SkillReferenceState)
   | {
       kind: "none";
       isCommandMode: false;
@@ -119,6 +128,7 @@ export class Editor implements Component {
   private readonly maximumVisibleSuggestions: number;
   private readonly collapseLongPastes: boolean;
   private readonly promptTemplates: readonly KanaPromptTemplate[];
+  private readonly skills: readonly KanaSkillActivation[];
   private lastPaletteKey = "";
   private readonly bracketedPaste = new BracketedPasteBuffer();
   private model?: string;
@@ -148,6 +158,7 @@ export class Editor implements Component {
       options.commandPaletteVisibleLimit ?? COMMAND_PALETTE_VISIBLE_LIMIT;
     this.collapseLongPastes = options.collapseLongPastes ?? true;
     this.promptTemplates = structuredClone(options.promptTemplates ?? []);
+    this.skills = structuredClone(options.skills ?? []);
     this.paletteViewport = new ListViewport(this.maximumVisibleSuggestions);
   }
 
@@ -322,18 +333,24 @@ export class Editor implements Component {
       let submit: PromptSubmit | undefined;
       try {
         submit =
-          paletteState.kind === "template"
-            ? createPromptTemplateSubmit(
+          paletteState.kind === "skill"
+            ? createSkillReferenceSubmit(
                 this.state.value,
                 paletteState.suggestions[this.paletteViewport.selectedIndex],
-                this.promptTemplates,
+                this.skills,
               )
-            : createCommandSubmit(
-                this.state.value,
-                paletteState.kind === "command"
-                  ? paletteState.suggestions[this.paletteViewport.selectedIndex]
-                  : undefined,
-              );
+            : paletteState.kind === "template"
+              ? createPromptTemplateSubmit(
+                  this.state.value,
+                  paletteState.suggestions[this.paletteViewport.selectedIndex],
+                  this.promptTemplates,
+                )
+              : createCommandSubmit(
+                  this.state.value,
+                  paletteState.kind === "command"
+                    ? paletteState.suggestions[this.paletteViewport.selectedIndex]
+                    : undefined,
+                );
       } catch (error) {
         this.onError?.(error);
         return;
@@ -383,9 +400,11 @@ export class Editor implements Component {
 
       if (paletteState.showPalette && suggestion) {
         this.setText(
-          paletteState.kind === "template"
-            ? completePromptTemplate(suggestion as KanaPromptTemplate)
-            : completeCommand(suggestion as PromptCommand),
+          paletteState.kind === "skill"
+            ? completeSkillReference(suggestion as KanaSkillActivation)
+            : paletteState.kind === "template"
+              ? completePromptTemplate(suggestion as KanaPromptTemplate)
+              : completeCommand(suggestion as PromptCommand),
         );
         return;
       }
@@ -393,18 +412,24 @@ export class Editor implements Component {
       let submit: PromptSubmit | undefined;
       try {
         submit =
-          paletteState.kind === "template"
-            ? createPromptTemplateSubmit(
+          paletteState.kind === "skill"
+            ? createSkillReferenceSubmit(
                 this.state.value,
-                suggestion as KanaPromptTemplate | undefined,
-                this.promptTemplates,
+                suggestion as KanaSkillActivation | undefined,
+                this.skills,
               )
-            : createCommandSubmit(
-                this.state.value,
-                paletteState.kind === "command"
-                  ? (suggestion as PromptCommand | undefined)
-                  : undefined,
-              );
+            : paletteState.kind === "template"
+              ? createPromptTemplateSubmit(
+                  this.state.value,
+                  suggestion as KanaPromptTemplate | undefined,
+                  this.promptTemplates,
+                )
+              : createCommandSubmit(
+                  this.state.value,
+                  paletteState.kind === "command"
+                    ? (suggestion as PromptCommand | undefined)
+                    : undefined,
+                );
       } catch (error) {
         this.onError?.(error);
         return;
@@ -503,7 +528,9 @@ export class Editor implements Component {
         color(
           paletteState.kind === "template"
             ? "No matching prompt templates"
-            : "No matching commands",
+            : paletteState.kind === "skill"
+              ? "No matching Skills"
+              : "No matching commands",
           tuiTheme.error,
         ),
       ];
@@ -515,7 +542,12 @@ export class Editor implements Component {
     );
     const viewport = this.paletteViewport.window(paletteState.suggestions.length);
     const lines: string[] = [];
-    const label = paletteState.kind === "template" ? "templates" : "commands";
+    const label =
+      paletteState.kind === "template"
+        ? "templates"
+        : paletteState.kind === "skill"
+          ? "Skills"
+          : "commands";
 
     if (viewport.hiddenBefore > 0) {
       lines.push(dim(`... ${viewport.hiddenBefore} earlier ${label}`));
@@ -525,9 +557,11 @@ export class Editor implements Component {
       const suggestion = paletteState.suggestions[index];
       const prefix = index === this.paletteViewport.selectedIndex ? "> " : "  ";
       const helpLine =
-        paletteState.kind === "template"
-          ? formatPromptTemplateHelpLine(suggestion as KanaPromptTemplate, this.promptTemplates)
-          : formatPromptCommandHelpLine(suggestion as PromptCommand);
+        paletteState.kind === "skill"
+          ? formatSkillReferenceHelpLine(suggestion as KanaSkillActivation, this.skills)
+          : paletteState.kind === "template"
+            ? formatPromptTemplateHelpLine(suggestion as KanaPromptTemplate, this.promptTemplates)
+            : formatPromptCommandHelpLine(suggestion as PromptCommand);
       const line = `${prefix}${helpLine}`;
 
       lines.push(
@@ -794,6 +828,10 @@ export class Editor implements Component {
     if (templateState.isTemplateMode) {
       return { kind: "template", ...templateState };
     }
+    const skillState = getSkillReferenceState(this.state.value, this.skills);
+    if (skillState.isSkillMode) {
+      return { kind: "skill", ...skillState };
+    }
     return {
       kind: "none",
       isCommandMode: false,
@@ -846,10 +884,10 @@ function formatByteSize(bytes: number): string {
 }
 
 function specialInputTokenEnd(value: string): number | undefined {
-  if (!value.startsWith("/") && !value.startsWith(":")) {
+  if (!value.startsWith("/") && !value.startsWith(":") && !value.startsWith("@")) {
     return undefined;
   }
 
-  const match = /^[/:]\S*/.exec(value);
+  const match = /^[/:@]\S*/.exec(value);
   return match?.[0].length;
 }
