@@ -1,3 +1,30 @@
+## [0.10.0](https://github.com/longyijdos/kana/compare/v0.9.0...v0.10.0) (2026-09-13)
+
+Kana v0.10.0 adds explicit Skill invocation and reusable prompt templates to the editor, reworks Markdown rendering in the TUI, and updates the built-in DeepSeek model registry.
+
+### Features
+
+- Invoke any discovered Skill explicitly with a leading `@` in the editor. The palette covers every Skill from the startup snapshot, including global Skills that are not automatically discoverable; a recognized leading name expands before submission into a short instruction with the Skill name, its `SKILL.md` path, and its base directory, without modifying `skills.toml` or making the Skill automatically discoverable later.
+- Author reusable prompt templates as `.md` files under `<KANA_HOME>/prompts` and insert them from the editor through the `:` palette. A completed invocation such as `:squash-cleanup` expands before the message enters the ordinary submit, history, and queue paths.
+- Register `deepseek-flash` (DeepSeek-V4.1-Flash) as the built-in DeepSeek flash model and make it the default for both the main and the memory agent. It supports image input, so the default Agent registers `view_image`.
+
+### Bug Fixes
+
+- Rework Markdown rendering on a standard parser: delimiters, escapes, code spans, nested emphasis, task markers, and strict `~~` strikethrough now follow standard semantics, and emphasis adjacent to CJK text renders correctly.
+- Render Background Job completions, subagent completions, and other automatic input as muted automatic messages consistently, whether they are consumed as steering, delivered on the next turn, or restored from session history.
+- Preserve and replay configured streamed assistant fields through the new Custom provider `assistant_replay_fields` metadata.
+- Expand a leading `~` or `~/` in filesystem tool paths to the user's home directory.
+- Size the context-compaction summary budget against the agent output limit.
+
+### Breaking Changes
+
+- The retired DeepSeek model names `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` are no longer registered and are rejected instead of resolving server-side.
+- The default main model changes from `deepseek-v4-pro`, and the default memory model from `deepseek-v4-flash`, to `deepseek-flash`.
+
+### Upgrade
+
+Replace `deepseek-v4-flash` or `deepseek-v4-flash-vision-exp` with `deepseek-flash` wherever they are named explicitly. Configurations that rely on defaults need no changes, and `deepseek-v4-pro` remains selectable.
+
 ## [0.9.0](https://github.com/longyijdos/kana/compare/v0.8.0...v0.9.0) (2026-09-09)
 
 Kana v0.9.0 adds profile-based asynchronous subagents, configurable built-in Agent tools, and dark, light, and custom TUI themes. It also makes the reusable Kana Agent workflow portable across repositories and providers.
