@@ -95,7 +95,7 @@ The live structured result remains available to `tool_execution_end`. Oversized,
 | `read` | `path`; optional 1-based `offset` and `limit` | Reads a UTF-8 line range and reports total lines and truncation. |
 | `view_image` | `path` | Normalizes a local image and returns metadata plus a visual observation; registered only when effective image input is enabled. |
 | `write` | `path`, complete `content`, optional `overwrite` | Creates parent directories and exclusively creates a file by default; explicit overwrite replaces one. |
-| `edit` | `path`, non-empty `oldText`, `newText`, optional `replaceAll` | Performs exact UTF-8 replacement; one match is required by default. |
+| `edit` | `path`, non-empty `edits` array of `oldText`/`newText` pairs | Atomically applies exact, non-overlapping UTF-8 replacements. |
 | `bash` | `command`; optional `cwd`, `timeoutMs` | Executes through the user's shell with detached stdin and a managed process group. |
 | `job_start` | `command`; optional `cwd`, `timeoutMs` | Starts a session-owned background shell command and immediately returns its Job ID and launch status. |
 | `job_list` | None | Lists active and up to 32 recent terminal Jobs for the current session and acknowledges listed terminal completions. |
@@ -114,6 +114,8 @@ The live structured result remains available to `tool_execution_end`. Oversized,
 ## File and shell boundaries
 
 File tools and `bash` resolve relative paths against their configured root, which Kana sets to the startup working directory. They also accept absolute paths. A leading `~` or `~/` in a path argument expands to the user's home directory, so `~/notes.md` never becomes a literal `~` directory inside the root; a `~` that appears after the first segment stays literal, and `glob.pattern` and `grep.include` are relative glob patterns rather than paths. This is path normalization, not a workspace sandbox: relative paths may leave the root, symlinks may resolve outside it, and `bash.cwd`, `glob.cwd`, and `grep.path` may name external locations.
+
+`edit` matches every `edits[].oldText` exactly once against the same original file content. Missing or ambiguous text and overlapping ranges reject the entire call without writing; otherwise all replacements are committed in one write.
 
 `view_image` shares the user-attachment decoder and size limits. Supported encoded JPEG, PNG, and WebP remain provider-ready; other decoded formats become static PNG, and animated input uses its decoded first frame.
 

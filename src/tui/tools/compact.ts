@@ -6,10 +6,9 @@ const COMPACT_OUTPUT_LINE_LIMIT = 8;
 // Write reserves one row for the `N bytes` result line, so its content
 // budget is one row smaller than the shared output limit.
 export const COMPACT_WRITE_LINE_LIMIT = 7;
-// Each edit side renders its own "... N more lines" marker and shares the
-// replacements line, so the per-side diff budget is smaller than the output
-// limit.
-export const COMPACT_DIFF_LINE_LIMIT = 3;
+// Edit reserves one row for the replacement count. When the flattened diff
+// exceeds this budget, one more row reports the omitted tail.
+export const COMPACT_EDIT_LINE_LIMIT = 7;
 
 /**
  * Truncates each of at most `maxLines` source rows and marks omitted rows.

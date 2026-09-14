@@ -27,3 +27,13 @@ export function getBooleanProperty(value: unknown, key: string): boolean | undef
 
   return typeof property === "boolean" ? property : undefined;
 }
+
+export function getArrayProperty(value: unknown, key: string): unknown[] | undefined {
+  if (!value || typeof value !== "object" || !(key in value)) {
+    return undefined;
+  }
+
+  const property = value[key as keyof typeof value];
+
+  return Array.isArray(property) ? property : undefined;
+}

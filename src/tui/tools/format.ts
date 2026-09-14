@@ -7,12 +7,7 @@ import {
   wrapPlainText,
 } from "../render";
 import { tuiTheme } from "../theme";
-import {
-  COMPACT_DIFF_LINE_LIMIT,
-  COMPACT_WRITE_LINE_LIMIT,
-  hasOmittedContent,
-  renderCompactText,
-} from "./compact";
+import { COMPACT_WRITE_LINE_LIMIT, hasOmittedContent, renderCompactText } from "./compact";
 import {
   buildFullToolDetail,
   formatFullToolDetail,
@@ -22,7 +17,7 @@ import {
 } from "./detail";
 import { getBooleanProperty, getNumberProperty, getStringProperty } from "./properties";
 import { formatBashOutput } from "./renderers/bash";
-import { formatEditOutput } from "./renderers/edit";
+import { formatEditOutput, hasExpandableEditOutput } from "./renderers/edit";
 import { formatGlobOutput } from "./renderers/glob";
 import { formatGrepOutput } from "./renderers/grep";
 import { formatListOutput } from "./renderers/list";
@@ -153,7 +148,7 @@ export function formatToolOutput(
     case "write":
       return formatWriteOutput(sanitizedToolCall, sanitizedResult, detail, width);
     case "edit":
-      return formatEditOutput(sanitizedResult, detail, width);
+      return formatEditOutput(sanitizedToolCall, sanitizedResult, detail, width);
     case "bash": {
       // Preserve the old tail-style compact preview ("... N more lines").
       const output = formatBashOutput(sanitizedResult);
@@ -248,15 +243,7 @@ export function hasExpandableToolOutput(
       return hasOmittedContent(formatBashOutput(result), width);
 
     case "edit": {
-      // Compact diff rows render inside 2-column "- "/"+ " prefixes.
-      const contentWidth = width === undefined ? undefined : width - 2;
-      const oldText = getStringProperty(result, "oldText");
-      const newText = getStringProperty(result, "newText");
-      return (
-        (oldText !== undefined &&
-          hasOmittedContent(oldText, contentWidth, COMPACT_DIFF_LINE_LIMIT)) ||
-        (newText !== undefined && hasOmittedContent(newText, contentWidth, COMPACT_DIFF_LINE_LIMIT))
-      );
+      return hasExpandableEditOutput(toolCall, width);
     }
   }
 

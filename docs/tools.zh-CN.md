@@ -95,7 +95,7 @@ min(8000, max(256, floor(promptBudget × 25%))) estimated tokens
 | `read` | `path`；可选从 1 开始的 `offset` 与 `limit` | 读取 UTF-8 行区间并报告总行数与截断。 |
 | `view_image` | `path` | 规范化本地图片并返回 metadata 与视觉观察；只在有效图片输入启用时注册。 |
 | `write` | `path`、完整 `content`、可选 `overwrite` | 创建父目录，默认排他创建文件；显式 overwrite 才替换。 |
-| `edit` | `path`、非空 `oldText`、`newText`、可选 `replaceAll` | 精确替换 UTF-8 内容；默认要求一次匹配。 |
+| `edit` | `path`、由 `oldText`/`newText` 对组成的非空 `edits` 数组 | 原子应用精确且互不重叠的 UTF-8 替换。 |
 | `bash` | `command`；可选 `cwd`、`timeoutMs` | 通过用户 shell 执行，stdin 断开并使用受管进程组。 |
 | `job_start` | `command`；可选 `cwd`、`timeoutMs` | 启动 session-owned 后台 shell 命令，立即返回 Job ID 与启动状态。 |
 | `job_list` | 无 | 列出当前 session 活动 Job 与最多 32 个近期终态 Job，并确认列出的终态完成。 |
@@ -114,6 +114,8 @@ min(8000, max(256, floor(promptBudget × 25%))) estimated tokens
 ## 文件与 Shell 边界
 
 文件工具和 `bash` 把相对路径解析到配置 root；Kana 将其设为启动工作目录。它们也接受绝对路径。path 参数开头的 `~` 或 `~/` 会展开为用户的 home 目录，因此 `~/notes.md` 不会再变成 root 内的字面量 `~` 目录；出现在首段之后的 `~` 仍保持字面量，而 `glob.pattern` 与 `grep.include` 是相对 glob 而非路径。这是路径规范化，不是 workspace sandbox：相对路径可以离开 root，符号链接可能解析到外部，`bash.cwd`、`glob.cwd` 与 `grep.path` 也可以指定外部位置。
+
+`edit` 会在同一份原始文件内容上分别对每个 `edits[].oldText` 做一次精确唯一匹配。文本缺失、匹配不唯一或替换区间重叠时，整次调用都会在不写文件的情况下失败；否则全部替换通过一次写入提交。
 
 `view_image` 与用户附件共用 decoder 和大小限制。支持的 JPEG、PNG 与 WebP 保持 provider-ready；其它解码格式变成静态 PNG，动画输入使用解码后的首帧。
 

@@ -209,8 +209,7 @@ class AbortedToolCallModel implements Model {
         name: "edit",
         args: {
           path: "foo.ts",
-          oldText: "before",
-          newText: "after",
+          edits: [{ oldText: "before", newText: "after" }],
         },
         rawArgs: '{"path":"foo.ts"',
       });

@@ -2,7 +2,7 @@ import type { ToolCallContent } from "@/core";
 import { splitLines, wrapPlainText } from "../render";
 import { buildToolInspectorContext, formatFullToolDetail, isBuiltInToolName } from "./detail";
 import { formatToolOutput } from "./format";
-import { getStringProperty } from "./properties";
+import { getArrayProperty } from "./properties";
 import type { ToolState } from "./types";
 
 const CONTENT_INDENT = "  ";
@@ -56,18 +56,15 @@ export function formatToolInspector(
   return lines;
 }
 
-// Write output comes from arguments; edit old/new text comes from successful results.
-// Keep material in context whenever those renderers cannot show it.
+// Write and edit output comes from arguments. Keep material in context only
+// when those renderers cannot show it.
 function includeMaterial(toolCall: ToolCallContent, result: unknown, state: ToolState): boolean {
   if (state !== "done") {
     return true;
   }
 
   if (toolCall.name === "edit") {
-    return (
-      getStringProperty(result, "oldText") === undefined ||
-      getStringProperty(result, "newText") === undefined
-    );
+    return getArrayProperty(toolCall.args, "edits") === undefined;
   }
 
   // A done write always reaches the write renderer, which re-renders the

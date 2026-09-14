@@ -8,7 +8,12 @@ import {
   DEFAULT_TIMEOUT_MS,
 } from "@/tools";
 import { stripTerminalControlSequences } from "../render";
-import { getBooleanProperty, getNumberProperty, getStringProperty } from "./properties";
+import {
+  getArrayProperty,
+  getBooleanProperty,
+  getNumberProperty,
+  getStringProperty,
+} from "./properties";
 
 export type ToolApprovalSource = {
   kind: "mcp";
@@ -173,15 +178,14 @@ function buildToolSections(
     case "edit": {
       pushSection(sections, "Path", getStringProperty(args, "path"));
       if (includeMaterial) {
-        pushSection(sections, "Replace", getStringProperty(args, "oldText"), {
-          preserveEmpty: true,
-        });
-        pushSection(sections, "With", getStringProperty(args, "newText"), {
-          preserveEmpty: true,
-        });
-      }
-      if (getBooleanProperty(args, "replaceAll") === true) {
-        pushSection(sections, "Replace all", "every occurrence in the file");
+        for (const [index, edit] of (getArrayProperty(args, "edits") ?? []).entries()) {
+          pushSection(sections, `edits[${index}] · Replace`, getStringProperty(edit, "oldText"), {
+            preserveEmpty: true,
+          });
+          pushSection(sections, `edits[${index}] · With`, getStringProperty(edit, "newText"), {
+            preserveEmpty: true,
+          });
+        }
       }
       break;
     }

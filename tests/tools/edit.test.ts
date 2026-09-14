@@ -20,8 +20,7 @@ describe("edit tool", () => {
     const result = await edit.execute(
       {
         path: "notes.txt",
-        oldText: "world",
-        newText: "kana",
+        edits: [{ oldText: "world", newText: "kana" }],
       },
       createToolContext(),
     );
@@ -31,68 +30,58 @@ describe("edit tool", () => {
       path: "notes.txt",
       replacements: 1,
       bytesWritten: 11,
-      oldText: "world",
-      newText: "kana",
     });
     expect(result.content).toContain("edited: notes.txt");
     expect(await readFile(path.join(root, "notes.txt"), "utf8")).toBe("hello kana\n");
   });
 
-  test("rejects missing old text", async () => {
+  test("applies disjoint edits matched against the original content", async () => {
     const root = await createTempRoot();
-    await writeFile(path.join(root, "notes.txt"), "hello world\n");
-    const edit = createEditTool({ root });
-
-    await expect(
-      edit.execute(
-        {
-          path: "notes.txt",
-          oldText: "missing",
-          newText: "kana",
-        },
-        createToolContext(),
-      ),
-    ).rejects.toThrow("Text not found");
-  });
-
-  test("rejects repeated old text unless replaceAll is true", async () => {
-    const root = await createTempRoot();
-    await writeFile(path.join(root, "notes.txt"), "x = 1\nx = 2\n");
-    const edit = createEditTool({ root });
-
-    await expect(
-      edit.execute(
-        {
-          path: "notes.txt",
-          oldText: "x",
-          newText: "y",
-        },
-        createToolContext(),
-      ),
-    ).rejects.toThrow("Text appears 2 times");
-
-    expect(await readFile(path.join(root, "notes.txt"), "utf8")).toBe("x = 1\nx = 2\n");
-  });
-
-  test("can replace all text matches", async () => {
-    const root = await createTempRoot();
-    await writeFile(path.join(root, "notes.txt"), "x = 1\nx = 2\n");
+    await writeFile(path.join(root, "notes.txt"), "alpha\nbeta\n");
     const edit = createEditTool({ root });
     const result = await edit.execute(
       {
         path: "notes.txt",
-        oldText: "x",
-        newText: "y",
-        replaceAll: true,
+        edits: [
+          { oldText: "alpha", newText: "beta\nalpha" },
+          { oldText: "beta", newText: "BETA" },
+        ],
       },
       createToolContext(),
     );
 
     expectToolResult(result);
-    expect(result.result).toMatchObject({
-      path: "notes.txt",
-      replacements: 2,
-    });
-    expect(await readFile(path.join(root, "notes.txt"), "utf8")).toBe("y = 1\ny = 2\n");
+    expect(result.result.replacements).toBe(2);
+    expect(await readFile(path.join(root, "notes.txt"), "utf8")).toBe("beta\nalpha\nBETA\n");
+  });
+
+  test("reports every validation failure and leaves the file unchanged", async () => {
+    const root = await createTempRoot();
+    await writeFile(path.join(root, "notes.txt"), "alpha beta beta gamma\n");
+    const edit = createEditTool({ root });
+
+    const execution = edit.execute(
+      {
+        path: "notes.txt",
+        edits: [
+          { oldText: "alpha", newText: "ALPHA" },
+          { oldText: "missing", newText: "absent" },
+          { oldText: "beta", newText: "BETA" },
+          { oldText: "pha", newText: "PHA" },
+        ],
+      },
+      createToolContext(),
+    );
+
+    await expect(execution).rejects.toThrow(
+      [
+        "Edit failed for notes.txt; no changes were written:",
+        "- edits[1]: text not found",
+        "- edits[2]: text appears 2 times; provide a more specific oldText",
+        "- edits[0] and edits[3]: ranges overlap",
+      ].join("\n"),
+    );
+
+    expect(await readFile(path.join(root, "notes.txt"), "utf8")).toBe("alpha beta beta gamma\n");
   });
 });

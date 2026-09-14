@@ -209,9 +209,12 @@ const schemaCases: SchemaCase[] = [
   {
     name: "edit",
     tool: createEditTool(),
-    valid: { path: "a.txt", oldText: "a", newText: "b", replaceAll: false },
-    invalidArgs: { path: "a.txt", oldText: "a", newText: "b", text: "a" },
-    unexpected: "text",
+    valid: { path: "a.txt", edits: [{ oldText: "a", newText: "b" }] },
+    invalidArgs: {
+      path: "a.txt",
+      edits: [{ oldText: "a", newText: "b", replaceAll: true }],
+    },
+    unexpected: "replaceAll",
   },
   {
     name: "bash",

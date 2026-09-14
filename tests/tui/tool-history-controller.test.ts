@@ -93,8 +93,8 @@ describe("tool history controller", () => {
     transcript.addChild(
       completedBlock(
         "edit",
-        { path: "src/app.ts", oldText: "old", newText: "new" },
-        { path: "src/app.ts", replacements: 1, oldText: "old", newText: "new" },
+        { path: "src/app.ts", edits: [{ oldText: "old", newText: "new" }] },
+        { path: "src/app.ts", replacements: 1, bytesWritten: 3 },
       ),
     );
     transcript.addChild(

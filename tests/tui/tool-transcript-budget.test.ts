@@ -5,7 +5,7 @@ import { stripAnsi, visibleWidth } from "../../src/tui/render";
 
 const WIDTH = 80;
 // Compact tool block shape: 1 title row + 1 target row + at most 9 output
-// rows (edit: replacements + 3 old + 3 new + 2 omission markers).
+// rows (edit: replacements + 7 diff rows + 1 omission marker).
 const MAX_TOOL_ROWS = 11;
 
 describe("compact tool transcript bounds", () => {
@@ -122,20 +122,20 @@ describe("compact tool transcript bounds", () => {
     const newText = Array.from({ length: 500 }, (_, index) => `new line ${index + 1}`).join("\n");
     const block = completedBlock(
       "edit",
-      { path: "src/app.ts", oldText, newText },
-      { path: "src/app.ts", replacements: 1, oldText, newText },
+      { path: "src/app.ts", edits: [{ oldText, newText }] },
+      { path: "src/app.ts", replacements: 1, bytesWritten: 5000 },
     );
 
     const compact = block.render(WIDTH).map(stripAnsi);
 
     expect(compact.length).toBeLessThanOrEqual(MAX_TOOL_ROWS);
-    expect(compact.join("\n")).toContain("... 497 more lines");
+    expect(compact.join("\n")).toContain("... 993 more lines");
     expect(compact.some((line) => line.startsWith("- "))).toBe(true);
-    expect(compact.some((line) => line.startsWith("+ "))).toBe(true);
-    expect(compact.join("\n")).toContain("- old line 500");
-    expect(compact.join("\n")).toContain("+ new line 500");
-    expect(compact.join("\n")).not.toContain("- old line 497");
-    expect(compact.join("\n")).not.toContain("+ new line 497");
+    expect(compact.some((line) => line.startsWith("+ "))).toBe(false);
+    expect(compact.join("\n")).toContain("- old line 1");
+    expect(compact.join("\n")).toContain("- old line 7");
+    expect(compact.join("\n")).not.toContain("- old line 8");
+    expect(compact.at(-1)).toBe("... 993 more lines");
     expect(block.hasExpandableOutput()).toBe(true);
 
     const full = block.getToolDetailView().render(WIDTH).map(stripAnsi);
@@ -144,13 +144,51 @@ describe("compact tool transcript bounds", () => {
     expect(full).toContain("+ new line 500");
   });
 
+  test("flattens batched edits from edits[0] and marks the omitted tail", () => {
+    const block = completedBlock(
+      "edit",
+      {
+        path: "src/app.ts",
+        edits: [
+          { oldText: "old zero line 1\nold zero line 2", newText: "new zero" },
+          { oldText: "old one", newText: "new one line 1\nnew one line 2" },
+          { oldText: "old two", newText: "new two" },
+        ],
+      },
+      { path: "src/app.ts", replacements: 3, bytesWritten: 42 },
+    );
+
+    const compact = block.render(WIDTH).map(stripAnsi);
+    expect(compact).toContain("3 replacements");
+    expect(compact.filter((line) => line.startsWith("- "))).toEqual([
+      "- old zero line 1",
+      "- old zero line 2",
+      "- old one",
+      "- old two",
+    ]);
+    expect(compact.filter((line) => line.startsWith("+ "))).toEqual([
+      "+ new zero",
+      "+ new one line 1",
+      "+ new one line 2",
+    ]);
+    expect(compact.at(-1)).toBe("... 1 more lines");
+    expect(block.hasExpandableOutput()).toBe(true);
+
+    const full = block.getToolDetailView().render(WIDTH).map(stripAnsi);
+    expect(full).not.toContain("edits[0]");
+    expect(full).toContain("- old zero line 1");
+    expect(full).toContain("+ new zero");
+    expect(full).toContain("- old two");
+    expect(full).toContain("+ new two");
+  });
+
   test("wraps a super-wide single-line edit diff in the full result view", () => {
     const oldText = "o".repeat(1_000);
     const newText = "n".repeat(1_000);
     const block = completedBlock(
       "edit",
-      { path: "src/app.ts", oldText, newText },
-      { path: "src/app.ts", replacements: 1, oldText, newText },
+      { path: "src/app.ts", edits: [{ oldText, newText }] },
+      { path: "src/app.ts", replacements: 1, bytesWritten: 1000 },
     );
 
     const compact = block.render(WIDTH).map(stripAnsi);
@@ -266,8 +304,8 @@ describe("compact tool transcript bounds", () => {
       },
       {
         name: "edit",
-        args: { path: "src/app.ts" },
-        result: { path: "src/app.ts", replacements: 1, oldText: "a", newText: "b" },
+        args: { path: "src/app.ts", edits: [{ oldText: "a", newText: "b" }] },
+        result: { path: "src/app.ts", replacements: 1, bytesWritten: 1 },
         target: "src/app.ts",
       },
     ];

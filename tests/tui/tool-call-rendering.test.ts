@@ -314,8 +314,11 @@ describe("tool call rendering", () => {
       },
       {
         name: "edit",
-        args: { path: `src/z\u001b]0;z\u0007.ts` },
-        result: { path: `src/z\u001b]0;z\u0007.ts`, replacements: 1, oldText: "a", newText: "b" },
+        args: {
+          path: `src/z\u001b]0;z\u0007.ts`,
+          edits: [{ oldText: "a", newText: "b" }],
+        },
+        result: { path: `src/z\u001b]0;z\u0007.ts`, replacements: 1, bytesWritten: 1 },
         target: "src/z.ts",
       },
     ];
@@ -470,6 +473,7 @@ describe("tool call rendering", () => {
       name: "edit",
       args: {
         path: "src/app.ts",
+        edits: [{ oldText: "old line", newText: "new line" }],
       },
     });
 
@@ -478,8 +482,6 @@ describe("tool call rendering", () => {
         path: "src/app.ts",
         replacements: 1,
         bytesWritten: 42,
-        oldText: "old line",
-        newText: "new line",
       },
       false,
     );
@@ -525,14 +527,16 @@ describe("tool call rendering", () => {
       type: "tool_call",
       id: "edit_1",
       name: "edit",
-      args: { path: "src/app.ts" },
+      args: {
+        path: "src/app.ts",
+        edits: [{ oldText: "const old = 1;", newText: "const next = 1;" }],
+      },
     });
     edit.updateResult(
       {
         path: "src/app.ts",
         replacements: 1,
-        oldText: "const old = 1;",
-        newText: "const next = 1;",
+        bytesWritten: 15,
       },
       false,
     );

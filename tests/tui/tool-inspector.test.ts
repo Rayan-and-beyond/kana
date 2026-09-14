@@ -18,25 +18,26 @@ describe("tool inspector", () => {
     const edit = renderInspector(
       toolCall("edit", {
         path: "src/app.ts",
-        oldText: "old line",
-        newText: "new line",
-        replaceAll: true,
+        edits: [
+          { oldText: "old line", newText: "new line" },
+          { oldText: "old value", newText: "new value" },
+        ],
       }),
       {
         path: "src/app.ts",
-        replacements: 1,
-        oldText: "old line",
-        newText: "new line",
+        replacements: 2,
+        bytesWritten: 18,
       },
       false,
       "done",
     );
 
-    expect(edit.filter((line) => line.startsWith("- "))).toEqual(["- old line"]);
-    expect(edit.filter((line) => line.startsWith("+ "))).toEqual(["+ new line"]);
+    expect(edit.filter((line) => line.startsWith("- "))).toEqual(["- old line", "- old value"]);
+    expect(edit.filter((line) => line.startsWith("+ "))).toEqual(["+ new line", "+ new value"]);
+    expect(edit).not.toContain("edits[0]");
+    expect(edit).not.toContain("edits[1]");
     expect(edit).not.toContain("Replace");
     expect(edit).not.toContain("With");
-    expect(edit.join("\n")).toContain("Replace all");
   });
 
   test("keeps write arguments available before successful structured output", () => {
@@ -61,34 +62,35 @@ describe("tool inspector", () => {
     }
   });
 
-  test("keeps edit arguments when the result cannot supply a diff", () => {
+  test("keeps edit arguments before successful structured output", () => {
     const call = toolCall("edit", {
       path: "src/app.ts",
-      oldText: "old text",
-      newText: "new text",
+      edits: [{ oldText: "old text", newText: "new text" }],
     });
     const cases = [
       { result: undefined, isError: false, state: "running" as const },
       { result: { error: "not found" }, isError: true, state: "failed" as const },
-      { result: { path: "src/app.ts", replacements: 1 }, isError: false, state: "done" as const },
     ];
 
     for (const entry of cases) {
       const rendered = renderInspector(call, entry.result, entry.isError, entry.state);
 
-      expect(rendered).toContain("Replace");
+      expect(rendered).toContain("edits[0] · Replace");
       expect(rendered).toContain("  old text");
-      expect(rendered).toContain("With");
+      expect(rendered).toContain("edits[0] · With");
       expect(rendered).toContain("  new text");
     }
 
     const deletion = renderInspector(
-      toolCall("edit", { path: "foo.ts", oldText: "obsolete code", newText: "" }),
+      toolCall("edit", {
+        path: "foo.ts",
+        edits: [{ oldText: "obsolete code", newText: "" }],
+      }),
       undefined,
       false,
       "running",
     );
-    expect(deletion).toContain("With");
+    expect(deletion).toContain("edits[0] · With");
   });
 
   test("wraps long detail fields within the inspector width", () => {

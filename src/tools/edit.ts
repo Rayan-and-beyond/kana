@@ -5,31 +5,31 @@ import { strictObject } from "./strict-object";
 import type { Tool } from "./tool";
 import { resolveExistingWorkspaceFile } from "./workspace-path";
 
-export const editParameters = strictObject({
-  path: Type.String({
-    description: "Existing file path to edit, relative to the workspace root or absolute.",
-  }),
+const editEntryParameters = strictObject({
   oldText: Type.String({
     minLength: 1,
-    description: "Exact text to replace. Must be non-empty.",
+    description: "Exact text to replace. Must match exactly once in the original file.",
   }),
   newText: Type.String({
     description: "Replacement text.",
   }),
-  replaceAll: Type.Optional(
-    Type.Boolean({
-      default: false,
-      description: "Replace every occurrence. Defaults to false, which requires exactly one match.",
-    }),
-  ),
+});
+
+export const editParameters = strictObject({
+  path: Type.String({
+    description: "Existing file path to edit, relative to the workspace root or absolute.",
+  }),
+  edits: Type.Array(editEntryParameters, {
+    minItems: 1,
+    description:
+      "One or more exact, non-overlapping replacements. All edits are matched against the original file and applied atomically.",
+  }),
 });
 
 export type EditToolResult = {
   path: string;
   replacements: number;
   bytesWritten: number;
-  oldText: string;
-  newText: string;
 };
 
 export type EditToolOptions = {
@@ -44,7 +44,7 @@ export function createEditTool(
   return {
     name: "edit",
     description:
-      "Edit an existing text file by exact string replacement. By default oldText must match exactly once.",
+      "Atomically edit one existing text file with exact, non-overlapping replacements. Every oldText must match exactly once in the original file.",
     parameters: editParameters,
     execute: async (args, context) => {
       if (context.signal?.aborted) {
@@ -53,21 +53,68 @@ export function createEditTool(
 
       const filePath = await resolveExistingWorkspaceFile(root, args.path);
       const content = await readFile(filePath.absolutePath, "utf8");
-      const replacements = countOccurrences(content, args.oldText);
+      const validationErrors: string[] = [];
+      const plannedEdits: Array<{
+        index: number;
+        start: number;
+        end: number;
+        newText: string;
+      }> = [];
 
-      if (replacements === 0) {
-        throw new Error(`Text not found in file: ${args.path}`);
+      for (const [index, edit] of args.edits.entries()) {
+        const occurrences = countOccurrences(content, edit.oldText);
+
+        if (occurrences === 0) {
+          validationErrors.push(`edits[${index}]: text not found`);
+          continue;
+        }
+
+        if (occurrences > 1) {
+          validationErrors.push(
+            `edits[${index}]: text appears ${occurrences} times; provide a more specific oldText`,
+          );
+          continue;
+        }
+
+        const start = content.indexOf(edit.oldText);
+        plannedEdits.push({
+          index,
+          start,
+          end: start + edit.oldText.length,
+          newText: edit.newText,
+        });
       }
 
-      if (!args.replaceAll && replacements > 1) {
+      const orderedEdits = [...plannedEdits].sort((left, right) => left.start - right.start);
+
+      for (let leftIndex = 0; leftIndex < orderedEdits.length; leftIndex += 1) {
+        const left = orderedEdits[leftIndex];
+        if (!left) continue;
+
+        for (let rightIndex = leftIndex + 1; rightIndex < orderedEdits.length; rightIndex += 1) {
+          const right = orderedEdits[rightIndex];
+          if (!right || right.start >= left.end) break;
+          validationErrors.push(`edits[${left.index}] and edits[${right.index}]: ranges overlap`);
+        }
+      }
+
+      if (validationErrors.length > 0) {
         throw new Error(
-          `Text appears ${replacements} times in file; provide a more specific oldText or set replaceAll to true.`,
+          [
+            `Edit failed for ${args.path}; no changes were written:`,
+            ...validationErrors.map((error) => `- ${error}`),
+          ].join("\n"),
         );
       }
 
-      const nextContent = args.replaceAll
-        ? content.split(args.oldText).join(args.newText)
-        : content.replace(args.oldText, args.newText);
+      // Applying from right to left preserves positions matched against the
+      // original content and makes the input array order irrelevant.
+      let nextContent = content;
+      for (let index = orderedEdits.length - 1; index >= 0; index -= 1) {
+        const edit = orderedEdits[index];
+        if (!edit) continue;
+        nextContent = `${nextContent.slice(0, edit.start)}${edit.newText}${nextContent.slice(edit.end)}`;
+      }
 
       if (context.signal?.aborted) {
         throw new Error("Edit aborted.");
@@ -75,13 +122,10 @@ export function createEditTool(
 
       await writeFile(filePath.absolutePath, nextContent, "utf8");
 
-      const appliedReplacements = args.replaceAll ? replacements : 1;
       const result: EditToolResult = {
         path: filePath.relativePath,
-        replacements: appliedReplacements,
+        replacements: plannedEdits.length,
         bytesWritten: Buffer.byteLength(nextContent, "utf8"),
-        oldText: args.oldText,
-        newText: args.newText,
       };
 
       return {
@@ -108,7 +152,7 @@ function countOccurrences(content: string, search: string): number {
     }
 
     count += 1;
-    index = nextIndex + search.length;
+    index = nextIndex + 1;
   }
 }
 

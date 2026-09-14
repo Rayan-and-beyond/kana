@@ -94,19 +94,28 @@ describe("full-fidelity tool detail", () => {
     expect(formatFullToolDetail(detail)).toContain(content);
   });
 
-  test("keeps complete oldText and newText for edit with both sides present", () => {
+  test("keeps every complete edit entry", () => {
     const oldText = `// TODO: remove this placeholder\n${LONG_TEXT}`;
     const newText = `// Implemented\n${LONG_TEXT}`;
     const detail = buildFullToolDetail(
-      toolCall("edit", { path: "src/app.ts", oldText, newText, replaceAll: true }),
+      toolCall("edit", {
+        path: "src/app.ts",
+        edits: [
+          { oldText, newText },
+          { oldText: "export const stale = true;", newText: "export const stale = false;" },
+        ],
+      }),
     );
 
     expect(detail.sections).toContainEqual({ label: "Path", content: "src/app.ts" });
-    expect(detail.sections).toContainEqual({ label: "Replace", content: oldText });
-    expect(detail.sections).toContainEqual({ label: "With", content: newText });
     expect(detail.sections).toContainEqual({
-      label: "Replace all",
-      content: "every occurrence in the file",
+      label: "edits[0] · Replace",
+      content: oldText,
+    });
+    expect(detail.sections).toContainEqual({ label: "edits[0] · With", content: newText });
+    expect(detail.sections).toContainEqual({
+      label: "edits[1] · Replace",
+      content: "export const stale = true;",
     });
 
     const formatted = formatFullToolDetail(detail);
@@ -232,16 +241,22 @@ describe("full-fidelity tool detail", () => {
 
   test("keeps an empty edit newText visible with a blank With row on a deletion", () => {
     const detail = buildFullToolDetail(
-      toolCall("edit", { path: "foo.ts", oldText: "obsolete code", newText: "" }),
+      toolCall("edit", {
+        path: "foo.ts",
+        edits: [{ oldText: "obsolete code", newText: "" }],
+      }),
     );
 
     // The deletion intent is not recoverable if With vanishes: a blank
     // destination must keep its section.
     expect(detail.sections).toContainEqual({ label: "Path", content: "foo.ts" });
-    expect(detail.sections).toContainEqual({ label: "Replace", content: "obsolete code" });
-    expect(detail.sections).toContainEqual({ label: "With", content: "" });
+    expect(detail.sections).toContainEqual({
+      label: "edits[0] · Replace",
+      content: "obsolete code",
+    });
+    expect(detail.sections).toContainEqual({ label: "edits[0] · With", content: "" });
     // The bare label row marks the empty destination without a sentinel.
-    expect(formatFullToolDetail(detail)).toContain("With\n");
+    expect(formatFullToolDetail(detail)).toContain("edits[0] · With\n");
   });
 
   test("omits ordinary empty optional metadata but keeps material payloads", () => {
